@@ -2068,6 +2068,15 @@ func resourceAwsS3BucketReplicationConfigurationUpdate(s3conn *s3.S3, d *schema.
 					ruleAclTranslation.Owner = aws.String(aclTranslationValues["owner"].(string))
 					ruleDestination.AccessControlTranslation = ruleAclTranslation
 				}
+
+				if rtc, ok := bd["replication_time_control"].([]interface{}); ok && len(rtc) > 0 {
+					replicationTimeControlValues := rtc[0].(map[string]interface{})
+					rtcConfig := &s3.ReplicationTime{}
+					rtcConfig.Status = aws.String(replicationTimeControlValues["status"].(string))
+					rtcConfig.Time = &s3.ReplicationTimeValue{}
+					rtcConfig.Time.Minutes = aws.Int64(int64(replicationTimeControlValues["minutes"].(int)))
+					ruleDestination.ReplicationTime = rtcConfig
+				}
 			}
 		}
 		rcRule.Destination = ruleDestination
@@ -2353,6 +2362,13 @@ func flattenAwsS3BucketReplicationConfiguration(r *s3.ReplicationConfiguration) 
 			}
 			if v.Destination.StorageClass != nil {
 				rd["storage_class"] = aws.StringValue(v.Destination.StorageClass)
+			}
+			if v.Destination.ReplicationTime != nil {
+				rtc := map[string]interface{}{
+					"status":  aws.StringValue(v.Destination.ReplicationTime.Status),
+					"minutes": aws.Int64Value(v.Destination.ReplicationTime.Time.Minutes),
+				}
+				rd["replication_time_control"] = []interface{}{rtc}
 			}
 			if v.Destination.EncryptionConfiguration != nil {
 				if v.Destination.EncryptionConfiguration.ReplicaKmsKeyID != nil {

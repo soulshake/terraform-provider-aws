@@ -1608,6 +1608,99 @@ func TestAccAWSS3Bucket_Replication_basic(t *testing.T) {
 					),
 				),
 			},
+			{
+				Config: testAccAWSS3BucketConfigReplicationWithReplicationConfigurationWithRTC(rInt, 15),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckAWSS3BucketExistsWithProvider(resourceName, testAccAwsRegionProviderFunc(region, &providers)),
+					resource.TestCheckResourceAttr(resourceName, "replication_configuration.#", "1"),
+					resource.TestCheckResourceAttrPair(resourceName, "replication_configuration.0.role", iamRoleResourceName, "arn"),
+					resource.TestCheckResourceAttr(resourceName, "replication_configuration.0.rules.#", "1"),
+					testAccCheckAWSS3BucketExistsWithProvider("aws_s3_bucket.destination", testAccAwsRegionProviderFunc(alternateRegion, &providers)),
+
+					testAccCheckAWSS3BucketReplicationRules(
+						resourceName,
+						[]*s3.ReplicationRule{
+							{
+								ID: aws.String("foobar"),
+								Destination: &s3.Destination{
+									Bucket:       aws.String(fmt.Sprintf("arn:%s:s3:::tf-test-bucket-destination-%d", partition, rInt)),
+									StorageClass: aws.String(s3.StorageClassStandard),
+									ReplicationTime: &s3.ReplicationTime{
+										Time: &s3.ReplicationTimeValue{
+											Minutes: aws.Int64(15),
+										},
+										Status: aws.String(s3.ReplicationTimeStatusEnabled),
+									},
+								},
+								Prefix: aws.String("foo"),
+								Status: aws.String(s3.ReplicationRuleStatusEnabled),
+							},
+						},
+					),
+				),
+			},
+			{
+				Config: testAccAWSS3BucketConfigReplicationWithReplicationConfigurationWithRTCNoMinutes(rInt),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckAWSS3BucketExistsWithProvider(resourceName, testAccAwsRegionProviderFunc(region, &providers)),
+					resource.TestCheckResourceAttr(resourceName, "replication_configuration.#", "1"),
+					resource.TestCheckResourceAttrPair(resourceName, "replication_configuration.0.role", iamRoleResourceName, "arn"),
+					resource.TestCheckResourceAttr(resourceName, "replication_configuration.0.rules.#", "1"),
+					testAccCheckAWSS3BucketExistsWithProvider("aws_s3_bucket.destination", testAccAwsRegionProviderFunc(alternateRegion, &providers)),
+
+					testAccCheckAWSS3BucketReplicationRules(
+						resourceName,
+						[]*s3.ReplicationRule{
+							{
+								ID: aws.String("foobar"),
+								Destination: &s3.Destination{
+									Bucket:       aws.String(fmt.Sprintf("arn:%s:s3:::tf-test-bucket-destination-%d", partition, rInt)),
+									StorageClass: aws.String(s3.StorageClassStandard),
+									ReplicationTime: &s3.ReplicationTime{
+										Time: &s3.ReplicationTimeValue{
+											Minutes: aws.Int64(15),
+										},
+										Status: aws.String(s3.ReplicationTimeStatusEnabled),
+									},
+								},
+								Prefix: aws.String("foo"),
+								Status: aws.String(s3.ReplicationRuleStatusEnabled),
+							},
+						},
+					),
+				),
+			},
+			{
+				Config: testAccAWSS3BucketConfigReplicationWithReplicationConfigurationWithRTCNoConfig(rInt),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckAWSS3BucketExistsWithProvider(resourceName, testAccAwsRegionProviderFunc(region, &providers)),
+					resource.TestCheckResourceAttr(resourceName, "replication_configuration.#", "1"),
+					resource.TestCheckResourceAttrPair(resourceName, "replication_configuration.0.role", iamRoleResourceName, "arn"),
+					resource.TestCheckResourceAttr(resourceName, "replication_configuration.0.rules.#", "1"),
+					testAccCheckAWSS3BucketExistsWithProvider("aws_s3_bucket.destination", testAccAwsRegionProviderFunc(alternateRegion, &providers)),
+
+					testAccCheckAWSS3BucketReplicationRules(
+						resourceName,
+						[]*s3.ReplicationRule{
+							{
+								ID: aws.String("foobar"),
+								Destination: &s3.Destination{
+									Bucket:       aws.String(fmt.Sprintf("arn:%s:s3:::tf-test-bucket-destination-%d", partition, rInt)),
+									StorageClass: aws.String(s3.StorageClassStandard),
+									ReplicationTime: &s3.ReplicationTime{
+										Time: &s3.ReplicationTimeValue{
+											Minutes: aws.Int64(15),
+										},
+										Status: aws.String(s3.ReplicationTimeStatusEnabled),
+									},
+								},
+								Prefix: aws.String("foo"),
+								Status: aws.String(s3.ReplicationRuleStatusEnabled),
+							},
+						},
+					),
+				),
+			},
 		},
 	})
 }
@@ -4094,6 +4187,98 @@ resource "aws_s3_bucket" "bucket" {
   }
 }
 `, randInt, storageClass)
+}
+
+func testAccAWSS3BucketConfigReplicationWithReplicationConfigurationWithRTC(randInt int, minutes int) string {
+	return testAccAWSS3BucketConfigReplicationBasic(randInt) + fmt.Sprintf(`
+resource "aws_s3_bucket" "bucket" {
+  bucket = "tf-test-bucket-%[1]d"
+  acl    = "private"
+
+  versioning {
+    enabled = true
+  }
+
+  replication_configuration {
+    role = aws_iam_role.role.arn
+
+    rules {
+      id     = "foobar"
+      prefix = "foo"
+      status = "Enabled"
+
+      destination {
+        bucket        = aws_s3_bucket.destination.arn
+        storage_class = "STANDARD"
+        replication_time_control {
+          status  = "Enabled"
+          minutes = %[2]d
+        }
+      }
+    }
+  }
+}
+`, randInt, minutes)
+}
+
+func testAccAWSS3BucketConfigReplicationWithReplicationConfigurationWithRTCNoMinutes(randInt int) string {
+	return testAccAWSS3BucketConfigReplicationBasic(randInt) + fmt.Sprintf(`
+resource "aws_s3_bucket" "bucket" {
+  bucket = "tf-test-bucket-%[1]d"
+  acl    = "private"
+
+  versioning {
+    enabled = true
+  }
+
+  replication_configuration {
+    role = aws_iam_role.role.arn
+
+    rules {
+      id     = "foobar"
+      prefix = "foo"
+      status = "Enabled"
+
+      destination {
+        bucket        = aws_s3_bucket.destination.arn
+        storage_class = "STANDARD"
+        replication_time_control {
+          status  = "Enabled"
+        }
+      }
+    }
+  }
+}
+`, randInt)
+}
+
+func testAccAWSS3BucketConfigReplicationWithReplicationConfigurationWithRTCNoConfig(randInt int) string {
+	return testAccAWSS3BucketConfigReplicationBasic(randInt) + fmt.Sprintf(`
+resource "aws_s3_bucket" "bucket" {
+  bucket = "tf-test-bucket-%[1]d"
+  acl    = "private"
+
+  versioning {
+    enabled = true
+  }
+
+  replication_configuration {
+    role = aws_iam_role.role.arn
+
+    rules {
+      id     = "foobar"
+      prefix = "foo"
+      status = "Enabled"
+
+      destination {
+        bucket        = aws_s3_bucket.destination.arn
+        storage_class = "STANDARD"
+        replication_time_control {}
+      }
+    }
+  }
+}
+`, randInt)
 }
 
 func testAccAWSS3BucketConfigReplicationWithMultipleDestinationsEmptyFilter(randInt int) string {
